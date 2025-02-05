@@ -1,0 +1,17 @@
+plugin: amazon.aws.aws_ec2
+
+regions:
+  - us-east-1
+
+filters:
+  instance-state-name: running
+  tag:owner: "eladmadr"
+
+compose:
+  ansible_host: private_ip_address
+keyed_groups:
+  - key: tags.Service
+    prefix: service_
+  - key: tags.Name
+    prefix: instance_
+strict: false

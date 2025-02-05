@@ -1,0 +1,46 @@
+- name: Get EC2 instance tags
+  set_fact:
+    instance_tags: "{{ hostvars[inventory_hostname]['tags'] | default({}) }}"
+
+- name: Set hostname
+  hostname:
+    name: "{{ instance_tags.Name }}"
+  become: true
+  when: "'Name' in instance_tags"
+
+- name: Install the required service
+  yum:
+    name: "{{ 'mariadb-server' if instance_tags.Service == 'mysql' else instance_tags.Service }}"
+    state: present
+  become: true
+  when: "'Service' in instance_tags"
+
+- name: Enable and start service
+  systemd:
+    name: "{{ 'mariadb' if instance_tags.Service == 'mysql' else instance_tags.Service }}"
+    enabled: yes
+    state: started
+  become: true
+
+- name: Install cronie (cron service)
+  yum:
+    name: cronie
+    state: present
+  become: true
+
+- name: Enable and start cronie (cron service)
+  systemd:
+    name: crond
+    enabled: yes
+    state: started
+  become: true
+
+- name: Set restart schedule
+  cron:
+    name: "Restart {{ instance_tags.Name }}"
+    minute: "0"
+    hour: "{{ '6' if instance_tags.Name == 'mysql-test-aws-01' else '0' }}"
+    weekday: "{{ '0' if instance_tags.Name == 'mysql-test-aws-01' else '6' }}"
+    job: "/sbin/shutdown -r now"
+  when: "'Name' in instance_tags and 'Restart' in instance_tags"
+
